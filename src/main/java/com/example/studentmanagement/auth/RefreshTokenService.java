@@ -1,9 +1,9 @@
 package com.example.studentmanagement.auth;
 
 import com.example.studentmanagement.exception.InvalidCredentialsException;
+import com.example.studentmanagement.config.JwtProperties;
 import com.example.studentmanagement.user.User;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,10 +19,8 @@ import java.util.Base64;
 public class RefreshTokenService {
 
     private final RefreshTokenRepository refreshTokenRepository;
+    private final JwtProperties jwtProperties;
     private final SecureRandom secureRandom = new SecureRandom();
-
-    @Value("${jwt.refresh-token.expiration}")
-    private long refreshTokenExpiration;
 
     @Transactional
     public String create(User user) {
@@ -32,7 +30,7 @@ public class RefreshTokenService {
         RefreshToken token = RefreshToken.builder()
                 .tokenHash(hash(rawToken))
                 .user(user)
-                .expiryDate(Instant.now().plusMillis(refreshTokenExpiration))
+                .expiryDate(Instant.now().plusMillis(jwtProperties.getRefreshToken().getExpiration()))
                 .revoked(false)
                 .build();
         refreshTokenRepository.save(token);

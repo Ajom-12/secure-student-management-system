@@ -3,27 +3,24 @@ package com.example.studentmanagement.config;
 import com.example.studentmanagement.user.Role;
 import com.example.studentmanagement.user.User;
 import com.example.studentmanagement.user.UserRepository;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Configuration
+@RequiredArgsConstructor
 public class DataInitializer {
 
-    @Value("${app.bootstrap-admin.username:}")
-    private String username;
-
-    @Value("${app.bootstrap-admin.email:}")
-    private String email;
-
-    @Value("${app.bootstrap-admin.password:}")
-    private String password;
+    private final AppProperties appProperties;
 
     @Bean
     CommandLineRunner bootstrapAdmin(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         return args -> {
+            String username = appProperties.getBootstrapAdmin().getUsername();
+            String email = appProperties.getBootstrapAdmin().getEmail();
+            String password = appProperties.getBootstrapAdmin().getPassword();
             if (username.isBlank() && email.isBlank() && password.isBlank()) {
                 return;
             }
