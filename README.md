@@ -28,8 +28,8 @@ defaults in `src/main/resources/application.properties`:
 |---|---|---|
 | `DB_URL` | `jdbc:postgresql://localhost:5432/student_db` | JDBC URL |
 | `DB_USERNAME` | `postgres` | PostgreSQL user |
-| `DB_PASSWORD` | `postgres` | PostgreSQL password |
-| `JWT_SECRET` | local-only development key | Base64-encoded key; use a randomly generated secret of at least 32 bytes outside local development |
+| `DB_PASSWORD` | empty | PostgreSQL password; set if required by your local database |
+| `JWT_SECRET` | required | Base64-encoded random key of at least 32 bytes |
 | `JWT_ACCESS_TOKEN_TTL_MS` | `900000` | Access-token lifetime (15 minutes) |
 | `JWT_REFRESH_TOKEN_TTL_MS` | `604800000` | Refresh-token lifetime (7 days) |
 | `CORS_ALLOWED_ORIGIN` | `http://localhost:3000` | Single allowed frontend origin |
@@ -50,9 +50,15 @@ provided Hibernate `ddl-auto=update` development setting to create/update the
 tables automatically. Production deployments should use versioned migrations
 and disable automatic schema updates.
 
-From the project root:
+In PowerShell, set a signing key for this run (and your database password if
+needed), then start from the project root:
 
 ```powershell
+$bytes = New-Object byte[] 32
+$rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+$rng.GetBytes($bytes)
+$env:JWT_SECRET = [Convert]::ToBase64String($bytes)
+$env:DB_PASSWORD = "your-local-postgres-password"
 .\mvnw.cmd spring-boot:run
 ```
 
