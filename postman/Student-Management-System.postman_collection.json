@@ -1,0 +1,198 @@
+{
+  "info": {
+    "_postman_id": "b0fc2e6a-2651-4d86-bd42-27f7ca5744ef",
+    "name": "Student Management System",
+    "description": "End-to-end auth, role, student CRUD, refresh/revocation, validation, and CORS checks. Set adminUsername, adminPassword, and adminEmail to match the optional bootstrap administrator before running.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "adminUsername", "value": "admin" },
+    { "key": "adminPassword", "value": "replace-with-bootstrap-password" },
+    { "key": "adminEmail", "value": "admin@example.com" },
+    { "key": "studentUsername", "value": "" },
+    { "key": "studentEmail", "value": "" },
+    { "key": "studentPassword", "value": "StudentDemo#2026" },
+    { "key": "teacherUsername", "value": "" },
+    { "key": "teacherEmail", "value": "" },
+    { "key": "teacherPassword", "value": "TeacherDemo#2026" },
+    { "key": "studentId", "value": "" },
+    { "key": "teacherUserId", "value": "" },
+    { "key": "studentRecordId", "value": "" },
+    { "key": "studentAccessToken", "value": "" },
+    { "key": "studentRefreshToken", "value": "" },
+    { "key": "teacherAccessToken", "value": "" },
+    { "key": "adminAccessToken", "value": "" },
+    { "key": "oldRefreshToken", "value": "" },
+    { "key": "currentRefreshToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "01 - Register Student",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const suffix = Date.now().toString();",
+              "pm.collectionVariables.set('studentUsername', 'student' + suffix);",
+              "pm.collectionVariables.set('studentEmail', 'student' + suffix + '@example.com');"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Registration creates a STUDENT account', function () {",
+              "  pm.response.to.have.status(201);",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.role).to.eql('STUDENT');",
+              "  pm.collectionVariables.set('studentId', body.id);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\":\"{{studentUsername}}\",\"email\":\"{{studentEmail}}\",\"password\":\"{{studentPassword}}\"}"
+        },
+        "url": "{{baseUrl}}/api/auth/register"
+      }
+    },
+    {
+      "name": "02 - Duplicate Registration",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Duplicate registration is rejected', function () { pm.response.to.have.status(409); });"] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"username\":\"{{studentUsername}}\",\"email\":\"{{studentEmail}}\",\"password\":\"{{studentPassword}}\"}" },
+        "url": "{{baseUrl}}/api/auth/register"
+      }
+    },
+    {
+      "name": "03 - Invalid Registration Data",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Invalid fields return 400', function () { pm.response.to.have.status(400); });"] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"username\":\"x\",\"email\":\"not-an-email\",\"password\":\"short\"}" },
+        "url": "{{baseUrl}}/api/auth/register"
+      }
+    },
+    {
+      "name": "04 - Register Teacher Account (promote after admin login)",
+      "event": [
+        { "listen": "prerequest", "script": { "type": "text/javascript", "exec": ["const suffix = Date.now().toString();", "pm.collectionVariables.set('teacherUsername', 'teacher' + suffix);", "pm.collectionVariables.set('teacherEmail', 'teacher' + suffix + '@example.com');"] } },
+        { "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Teacher candidate registered as STUDENT', function () {", "  pm.response.to.have.status(201);", "  const body = pm.response.json();", "  pm.expect(body.role).to.eql('STUDENT');", "  pm.collectionVariables.set('teacherUserId', body.id);", "});"] } }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"username\":\"{{teacherUsername}}\",\"email\":\"{{teacherEmail}}\",\"password\":\"{{teacherPassword}}\"}" },
+        "url": "{{baseUrl}}/api/auth/register"
+      }
+    },
+    {
+      "name": "05 - Login Student",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Login returns access and refresh tokens', function () {", "  pm.response.to.have.status(200);", "  const body = pm.response.json();", "  pm.expect(body.accessToken).to.be.a('string');", "  pm.expect(body.refreshToken).to.be.a('string');", "  pm.collectionVariables.set('studentAccessToken', body.accessToken);", "  pm.collectionVariables.set('studentRefreshToken', body.refreshToken);", "  pm.collectionVariables.set('currentRefreshToken', body.refreshToken);", "});"] } }],
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"username\":\"{{studentUsername}}\",\"password\":\"{{studentPassword}}\"}" }, "url": "{{baseUrl}}/api/auth/login" }
+    },
+    {
+      "name": "06 - Incorrect Login",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Incorrect credentials return 401', function () { pm.response.to.have.status(401); });"] } }],
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"username\":\"{{studentUsername}}\",\"password\":\"wrong-password\"}" }, "url": "{{baseUrl}}/api/auth/login" }
+    },
+    {
+      "name": "07 - Protected Students Without Token",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Missing token returns 401', function () { pm.response.to.have.status(401); });"] } }],
+      "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/students" }
+    },
+    {
+      "name": "08 - Protected Students With Student Token",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Valid token can view students', function () { pm.response.to.have.status(200); });"] } }],
+      "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{studentAccessToken}}" }], "url": "{{baseUrl}}/api/students" }
+    },
+    {
+      "name": "09 - Admin User List As Student (Forbidden)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('STUDENT cannot manage users', function () { pm.response.to.have.status(403); });"] } }],
+      "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{studentAccessToken}}" }], "url": "{{baseUrl}}/api/users" }
+    },
+    {
+      "name": "10 - Login Admin",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Admin login succeeds', function () {", "  pm.response.to.have.status(200);", "  pm.collectionVariables.set('adminAccessToken', pm.response.json().accessToken);", "});"] } }],
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"username\":\"{{adminUsername}}\",\"password\":\"{{adminPassword}}\"}" }, "url": "{{baseUrl}}/api/auth/login" }
+    },
+    {
+      "name": "10a - List Users As Admin",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('ADMIN can view users', function () { pm.response.to.have.status(200); });"] } }],
+      "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }], "url": "{{baseUrl}}/api/users" }
+    },
+    {
+      "name": "11 - Promote Teacher Candidate",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('ADMIN can assign TEACHER role', function () {", "  pm.response.to.have.status(200);", "  pm.expect(pm.response.json().role).to.eql('TEACHER');", "});"] } }],
+      "request": { "method": "PUT", "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"role\":\"TEACHER\"}" }, "url": "{{baseUrl}}/api/users/{{teacherUserId}}/role" }
+    },
+    {
+      "name": "12 - Login Teacher",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Teacher login succeeds', function () {", "  pm.response.to.have.status(200);", "  pm.collectionVariables.set('teacherAccessToken', pm.response.json().accessToken);", "});"] } }],
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"username\":\"{{teacherUsername}}\",\"password\":\"{{teacherPassword}}\"}" }, "url": "{{baseUrl}}/api/auth/login" }
+    },
+    {
+      "name": "13 - Create Student As Teacher",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('TEACHER can create a student', function () {", "  pm.response.to.have.status(201);", "  pm.collectionVariables.set('studentRecordId', pm.response.json().id);", "});"] } }],
+      "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{teacherAccessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"registrationNumber\":\"REG-{{studentId}}\",\"fullName\":\"Demo Student\",\"email\":\"record-{{studentId}}@example.com\",\"phone\":\"+1-555-0100\",\"gender\":\"Other\",\"dateOfBirth\":\"2005-06-15\"}" }, "url": "{{baseUrl}}/api/students" }
+    },
+    {
+      "name": "13a - Update Student As Teacher",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('TEACHER can update a student', function () { pm.response.to.have.status(200); });"] } }],
+      "request": { "method": "PUT", "header": [{ "key": "Authorization", "value": "Bearer {{teacherAccessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"registrationNumber\":\"REG-{{studentId}}\",\"fullName\":\"Updated Demo Student\",\"email\":\"record-{{studentId}}@example.com\",\"phone\":\"+1-555-0100\",\"gender\":\"Other\",\"dateOfBirth\":\"2005-06-15\"}" }, "url": "{{baseUrl}}/api/students/{{studentRecordId}}" }
+    },
+    {
+      "name": "14 - Attempt Delete As Teacher (Forbidden)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('TEACHER cannot delete students', function () { pm.response.to.have.status(403); });"] } }],
+      "request": { "method": "DELETE", "header": [{ "key": "Authorization", "value": "Bearer {{teacherAccessToken}}" }], "url": "{{baseUrl}}/api/students/{{studentRecordId}}" }
+    },
+    {
+      "name": "15 - Invalid Student Data",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Invalid student data returns 400', function () { pm.response.to.have.status(400); });"] } }],
+      "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{teacherAccessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"registrationNumber\":\"\",\"fullName\":\"\",\"email\":\"bad\"}" }, "url": "{{baseUrl}}/api/students" }
+    },
+    {
+      "name": "16 - Student Not Found",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Missing student returns 404', function () { pm.response.to.have.status(404); });"] } }],
+      "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{studentAccessToken}}" }], "url": "{{baseUrl}}/api/students/99999999" }
+    },
+    {
+      "name": "17 - Refresh Access Token (Rotates Refresh Token)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Refresh returns a new pair and rotates the token', function () {", "  pm.response.to.have.status(200);", "  const body = pm.response.json();", "  pm.collectionVariables.set('oldRefreshToken', pm.collectionVariables.get('currentRefreshToken'));", "  pm.collectionVariables.set('currentRefreshToken', body.refreshToken);", "  pm.collectionVariables.set('studentAccessToken', body.accessToken);", "  pm.expect(body.refreshToken).to.not.eql(pm.collectionVariables.get('oldRefreshToken'));", "});"] } }],
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"refreshToken\":\"{{currentRefreshToken}}\"}" }, "url": "{{baseUrl}}/api/auth/refresh" }
+    },
+    {
+      "name": "18 - Logout (Revoke Refresh Token)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Logout revokes refresh token', function () { pm.response.to.have.status(204); });"] } }],
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"refreshToken\":\"{{currentRefreshToken}}\"}" }, "url": "{{baseUrl}}/api/auth/logout" }
+    },
+    {
+      "name": "19 - Reuse Refresh Token After Logout",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Revoked refresh token is rejected', function () { pm.response.to.have.status(401); });"] } }],
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"refreshToken\":\"{{currentRefreshToken}}\"}" }, "url": "{{baseUrl}}/api/auth/refresh" }
+    },
+    {
+      "name": "20 - Delete As Admin",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('ADMIN can delete a student', function () { pm.response.to.have.status(204); });"] } }],
+      "request": { "method": "DELETE", "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }], "url": "{{baseUrl}}/api/students/{{studentRecordId}}" }
+    },
+    {
+      "name": "21 - CORS Preflight",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('CORS allows configured frontend', function () {", "  pm.expect(pm.response.headers.get('Access-Control-Allow-Origin')).to.eql('http://localhost:3000');", "});"] } }],
+      "request": { "method": "OPTIONS", "header": [{ "key": "Origin", "value": "http://localhost:3000" }, { "key": "Access-Control-Request-Method", "value": "GET" }, { "key": "Access-Control-Request-Headers", "value": "authorization,content-type" }], "url": "{{baseUrl}}/api/students" }
+    }
+  ]
+}
